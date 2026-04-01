@@ -34,34 +34,21 @@ function SignupForm() {
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      name: '',
+      displayName: '',
       email: '',
       password: '',
       confirmPassword: '',
-      tenantName: '',
-      tenantSlug: '',
     },
   });
-
-  // Auto-generate slug from tenant name as the user types
-  const handleTenantNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setValue('tenantName', value, { shouldValidate: true });
-    const slug = value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-    setValue('tenantSlug', slug, { shouldValidate: !!slug });
-  };
 
   const { mutateAsync } = useMutation<
     AuthResponse,
     { message?: string },
     SignupFormValues
   >({
-    mutationFn: (values) => api.signup(values),
+    mutationFn: ({ confirmPassword, ...values }) => api.signup(values),
     onSuccess: (data) => {
-      login(data.token, data.user);
+      login(data.accessToken, data.user);
       router.push('/dashboard');
     },
     onError: (err) => {
@@ -93,7 +80,7 @@ function SignupForm() {
             </div>
             <span className="text-xl font-semibold text-gray-100">TaskFlow</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-100">Create your workspace</h1>
+          <h1 className="text-2xl font-bold text-gray-100">Create your account</h1>
           <p className="text-gray-400 text-sm mt-1">Start collaborating with your team</p>
         </div>
 
@@ -101,19 +88,19 @@ function SignupForm() {
           <form onSubmit={onSubmit} noValidate className="space-y-4">
             {/* Full name */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-1.5">
+              <label htmlFor="displayName" className="block text-sm font-medium text-gray-300 mb-1.5">
                 Your Name
               </label>
               <input
-                id="name"
+                id="displayName"
                 type="text"
                 placeholder="Alice Smith"
-                autoComplete="name"
-                aria-invalid={!!errors.name}
-                className={inputClass(!!errors.name)}
-                {...register('name')}
+                autoComplete="displayName"
+                aria-invalid={!!errors.displayName}
+                className={inputClass(!!errors.displayName)}
+                {...register('displayName')}
               />
-              <FieldError message={errors.name?.message} />
+              <FieldError message={errors.displayName?.message} />
             </div>
 
             {/* Email */}
@@ -167,44 +154,11 @@ function SignupForm() {
               <FieldError message={errors.confirmPassword?.message} />
             </div>
 
-            {/* Org name + slug side by side */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="tenantName" className="block text-sm font-medium text-gray-300 mb-1.5">
-                  Organization Name
-                </label>
-                <input
-                  id="tenantName"
-                  type="text"
-                  placeholder="Acme Corp"
-                  autoComplete="organization"
-                  aria-invalid={!!errors.tenantName}
-                  className={inputClass(!!errors.tenantName)}
-                  {...register('tenantName', { onChange: handleTenantNameChange })}
-                />
-                <FieldError message={errors.tenantName?.message} />
-              </div>
-
-              <div>
-                <label htmlFor="tenantSlug" className="block text-sm font-medium text-gray-300 mb-1.5">
-                  Workspace Slug
-                </label>
-                <input
-                  id="tenantSlug"
-                  type="text"
-                  placeholder="acme-corp"
-                  aria-invalid={!!errors.tenantSlug}
-                  className={inputClass(!!errors.tenantSlug)}
-                  {...register('tenantSlug')}
-                />
-                <FieldError message={errors.tenantSlug?.message} />
-              </div>
-            </div>
 
             {/* Server / root error */}
             {errors.root?.serverError && (
               <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3" role="alert">
-                <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4 text-red-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
                 <p className="text-sm text-red-400">{errors.root.serverError.message}</p>
@@ -232,7 +186,7 @@ function SignupForm() {
         </div>
 
         <p className="text-center text-sm text-gray-500 mt-4">
-          Already have a workspace?{' '}
+          Already have an account?{' '}
           <Link href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
             Sign in
           </Link>

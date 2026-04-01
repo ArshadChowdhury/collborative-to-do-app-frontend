@@ -11,7 +11,6 @@ interface TodoModalProps {
     title: string;
     description?: string;
     status: TodoStatus;
-    priority: 'low' | 'medium' | 'high';
     assigneeId?: string;
   }) => Promise<void>;
   onUpdate: (
@@ -20,7 +19,6 @@ interface TodoModalProps {
       title: string;
       description: string;
       status: TodoStatus;
-      priority: 'low' | 'medium' | 'high';
     }>,
   ) => Promise<void>;
   onDelete: (todoId: string) => Promise<void>;
@@ -41,7 +39,6 @@ export default function TodoModal({
     title: todo?.title ?? '',
     description: todo?.description ?? '',
     status: todo?.status ?? defaultStatus,
-    priority: todo?.priority ?? ('medium' as 'low' | 'medium' | 'high'),
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -135,7 +132,7 @@ export default function TodoModal({
           </div>
 
           {/* Status + Priority row */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid">
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wider">
                 Status
@@ -153,7 +150,7 @@ export default function TodoModal({
               </select>
             </div>
 
-            <div>
+            {/* <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wider">
                 Priority
               </label>
@@ -171,7 +168,7 @@ export default function TodoModal({
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
               </select>
-            </div>
+            </div> */}
           </div>
 
           {/* Error */}

@@ -10,6 +10,7 @@ import { AuthGuard } from '../../guards/AuthGuard';
 import { api } from '@/lib/axios';
 import { loginSchema, LoginFormValues } from '../../types/schemas';
 import { AuthResponse } from '@/types';
+import { apiClient } from '@/lib/axios';
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ function LoginForm() {
     setError,
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { tenantSlug: '', email: '', password: '' },
+    defaultValues: { email: '', password: '', tenantSlug: '', },
   });
 
   const { mutateAsync, error: mutationError } = useMutation<
@@ -33,11 +34,14 @@ function LoginForm() {
     { message?: string },
     LoginFormValues
   >({
-    mutationFn: (values) => api.login(values),
+    mutationFn: (values) => {
+      apiClient.defaults.headers.common['X-Tenant-Slug'] = values.tenantSlug;
+      const { tenantSlug, ...payload } = values;
+      return api.login(payload);
+    },
     onSuccess: (data) => {
-      login(data.token, data.user);
-      const returnTo = searchParams.get('returnTo');
-      router.push(returnTo ?? '/dashboard');
+      login(data.accessToken, data.user);
+      router.push('/dashboard');
     },
     onError: (err) => {
       // Surface server-level errors as a root form error
@@ -46,6 +50,36 @@ function LoginForm() {
       });
     },
   });
+
+  // const { mutateAsync } = useMutation<AuthResponse, Error, LoginFormValues>({
+  //   mutationFn: async (values) => {
+  //     apiClient.defaults.headers.common['X-Tenant-Slug'] = values.tenantSlug;
+  //     const { tenantSlug, ...payload } = values;
+  //     try {
+  //       return await api.login(payload);
+  //     } catch (err: unknown) {
+  //       // Recursively extract a string message from whatever shape the API throws
+  //       const extract = (e: unknown): string => {
+  //         if (typeof e === 'string') return e;
+  //         if (e instanceof Error) return e.message;
+  //         if (e && typeof e === 'object') {
+  //           const obj = e as Record<string, unknown>;
+  //           // Handle { message: { message: '...', statusCode, error } }
+  //           if (obj.message) return extract(obj.message);
+  //           if (obj.error) return extract(obj.error);
+  //         }
+  //         return 'Login failed. Please try again.';
+  //       };
+  //       throw new Error(extract(err));
+  //     }
+  //   },
+  //   onError: (err) => {
+  //     setError('root.serverError', {
+  //       message: err.message ?? 'Login failed. Please try again.',
+  //     });
+  //   },
+  // });
+
 
   const onSubmit = handleSubmit((values) => mutateAsync(values));
 
@@ -135,7 +169,7 @@ function LoginForm() {
             {/* Server / root error */}
             {errors.root?.serverError && (
               <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3" role="alert">
-                <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4 text-red-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
                 <p className="text-sm text-red-400">{errors.root.serverError.message}</p>

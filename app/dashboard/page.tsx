@@ -36,11 +36,11 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-100">
-            Welcome back, {user?.name?.split(' ')[0]} 👋
+            Welcome back, {user?.displayName?.split(' ')[0]} 👋
           </h1>
           <p className="text-gray-400 text-sm mt-1">
             {boards.length} board{boards.length !== 1 ? 's' : ''} in{' '}
-            <span className="text-indigo-400 font-medium">{user?.tenantName}</span>
+            {/* <span className="text-indigo-400 font-medium">{user?.tenantName}</span> */}
           </p>
         </div>
         <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">

@@ -1,7 +1,7 @@
 'use client';
 
 import { use, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useTodos } from '@/hooks/useTodos';
 import { Todo, TodoStatus } from '@/types';
@@ -14,12 +14,11 @@ const COLUMNS: { status: TodoStatus; label: string; color: string }[] = [
   { status: 'done', label: 'Done', color: 'bg-green-500' },
 ];
 
-export default function BoardPage({
-  params,
-}: {
-  params: Promise<{ boardId: string }>;
-}) {
-  const { boardId } = use(params);
+export default function BoardPage() {
+  const params = useParams();
+
+  const boardId = params.id as string;
+
   const {
     todos,
     isLoading,
@@ -104,11 +103,10 @@ export default function BoardPage({
           </div>
 
           {/* Live indicator */}
-          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
-            isConnected
-              ? 'bg-green-500/10 text-green-400'
-              : 'bg-gray-800 text-gray-500'
-          }`}>
+          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${isConnected
+            ? 'bg-green-500/10 text-green-400'
+            : 'bg-gray-800 text-gray-500'
+            }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
             {isConnected ? 'Live' : 'Connecting…'}
           </div>

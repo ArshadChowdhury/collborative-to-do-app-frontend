@@ -41,7 +41,7 @@ export default function TodoCard({
   return (
     <div
       onClick={onClick}
-      className="group bg-gray-800/60 hover:bg-gray-800/80 border border-white/[0.06] rounded-lg p-3 cursor-pointer transition-all duration-150 hover:border-indigo-500/30 hover:shadow-sm animate-slide-in"
+      className="group bg-gray-800/60 hover:bg-gray-800/80 border border-white/6 rounded-lg p-3 cursor-pointer transition-all duration-150 hover:border-indigo-500/30 hover:shadow-sm animate-slide-in"
     >
       {/* Title + delete */}
       <div className="flex items-start justify-between gap-2">
@@ -67,15 +67,15 @@ export default function TodoCard({
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-2.5 gap-2">
-        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${PRIORITY_STYLES[todo.priority]}`}>
+        {/* <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${PRIORITY_STYLES[todo.priority]}`}>
           {todo.priority}
-        </span>
+        </span> */}
 
         <select
           value={todo.status}
           onChange={handleStatusSelect}
           onClick={(e) => e.stopPropagation()}
-          className="text-xs bg-gray-900/60 border border-white/[0.08] rounded px-1.5 py-0.5 text-gray-400 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="text-xs bg-gray-900/60 border border-white/8 rounded px-1.5 py-0.5 text-gray-400 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
         >
           {STATUS_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -90,10 +90,10 @@ export default function TodoCard({
         <div className="flex items-center gap-1.5 mt-2">
           <div className="w-5 h-5 rounded-full bg-indigo-600/30 flex items-center justify-center">
             <span className="text-xs text-indigo-300 font-medium">
-              {todo.assignee.name?.[0]?.toUpperCase()}
+              {todo.assignee.displayName?.[0]?.toUpperCase()}
             </span>
           </div>
-          <span className="text-xs text-gray-500">{todo.assignee.name}</span>
+          <span className="text-xs text-gray-500">{todo.assignee.displayName}</span>
         </div>
       )}
     </div>

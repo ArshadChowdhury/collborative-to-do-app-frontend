@@ -17,7 +17,6 @@ type CreateTodoPayload = {
   title: string;
   description?: string;
   status: TodoStatus;
-  priority: 'low' | 'medium' | 'high';
   assigneeId?: string;
 };
 
@@ -25,7 +24,6 @@ type UpdateTodoPayload = Partial<{
   title: string;
   description: string;
   status: TodoStatus;
-  priority: 'low' | 'medium' | 'high';
   assigneeId: string;
 }>;
 

@@ -49,7 +49,7 @@ export default function TodoColumn({
       </div>
 
       {/* Cards */}
-      <div className="flex-1 overflow-y-auto rounded-xl bg-gray-900/40 p-2 space-y-2 min-h-[120px] border border-white/[0.04]">
+      <div className="flex-1 overflow-y-auto rounded-xl bg-gray-900/40 p-2 space-y-2 min-h-30 border border-white/4">
         {isLoading ? (
           [...Array(2)].map((_, i) => (
             <div
@@ -76,7 +76,7 @@ export default function TodoColumn({
         {/* Add button at bottom of column */}
         <button
           onClick={onAddClick}
-          className="w-full py-2 text-xs text-gray-600 hover:text-gray-400 hover:bg-white/[0.03] rounded-lg transition-colors flex items-center justify-center gap-1"
+          className="w-full py-2 text-xs text-gray-600 hover:text-gray-400 hover:bg-white/3 rounded-lg transition-colors flex items-center justify-center gap-1"
         >
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
