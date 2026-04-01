@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTenant } from '@/contexts/TenantContext';
+import { AuthGuard } from '@/guards/AuthGuard';
 import Sidebar from '@/components/layout/Sidebar';
 
 export default function DashboardLayout({
@@ -36,9 +37,11 @@ export default function DashboardLayout({
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-screen bg-gray-950 overflow-hidden">
-      <Sidebar />
-      <main className="flex-1 overflow-hidden">{children}</main>
-    </div>
+    <AuthGuard>
+      <div className="flex h-screen bg-gray-950 overflow-hidden">
+        <Sidebar />
+        <main className="flex-1 overflow-hidden">{children}</main>
+      </div>
+    </AuthGuard>
   );
 }

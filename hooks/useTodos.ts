@@ -1,168 +1,176 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { SocketDeleteEvent, SocketTodoEvent, Todo, TodoStatus } from '@/types';
 import { api } from '@/lib/axios';
+import { queryKeys } from '@/lib/queryClient';
 import { useSocket } from './useSocket';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type CreateTodoPayload = {
+  title: string;
+  description?: string;
+  status: TodoStatus;
+  priority: 'low' | 'medium' | 'high';
+  assigneeId?: string;
+};
+
+type UpdateTodoPayload = Partial<{
+  title: string;
+  description: string;
+  status: TodoStatus;
+  priority: 'low' | 'medium' | 'high';
+  assigneeId: string;
+}>;
 
 interface UseTodosReturn {
   todos: Todo[];
   isLoading: boolean;
+  isFetching: boolean;
   error: string | null;
-  createTodo: (payload: {
-    title: string;
-    description?: string;
-    status: TodoStatus;
-    priority: 'low' | 'medium' | 'high';
-    assigneeId?: string;
-  }) => Promise<void>;
-  updateTodo: (
-    todoId: string,
-    payload: Partial<{
-      title: string;
-      description: string;
-      status: TodoStatus;
-      priority: 'low' | 'medium' | 'high';
-      assigneeId: string;
-    }>,
-  ) => Promise<void>;
+  createTodo: (payload: CreateTodoPayload) => Promise<void>;
+  updateTodo: (todoId: string, payload: UpdateTodoPayload) => Promise<void>;
   deleteTodo: (todoId: string) => Promise<void>;
   isConnected: boolean;
 }
 
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
 export function useTodos(boardId: string): UseTodosReturn {
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const key = queryKeys.todos.byBoard(boardId);
 
-  // ── Fetch initial todos ───────────────────────────────────────────────────
+  // ── Fetch ─────────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetchTodos = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const data = await api.getTodos(boardId);
-        if (!cancelled) setTodos(data);
-      } catch (err: unknown) {
-        if (!cancelled) {
-          const msg =
-            err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Failed to fetch todos';
-          setError(msg);
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
+  const {
+    data: todos = [],
+    isLoading,
+    isFetching,
+    error: queryError,
+  } = useQuery<Todo[], { message?: string }>({
+    queryKey: key,
+    queryFn: () => api.getTodos(boardId),
+    enabled: !!boardId,
+  });
 
-    fetchTodos();
-    return () => { cancelled = true; };
-  }, [boardId]);
+  // ── Socket event handlers — patch the React Query cache directly ──────────
+  // This is the key integration: instead of managing a separate useState for
+  // real-time updates, socket events update the same cache that useQuery reads,
+  // so the UI re-renders automatically via TanStack Query's subscription.
 
-  // ── Socket event handlers (update local state from other users) ───────────
+  const handleTodoCreated = useCallback(
+    (event: SocketTodoEvent) => {
+      qc.setQueryData<Todo[]>(key, (prev = []) => {
+        if (prev.find((t) => t.id === event.todo.id)) return prev;
+        return [event.todo, ...prev];
+      });
+    },
+    [qc, key],
+  );
 
-  const handleTodoCreated = useCallback((event: SocketTodoEvent) => {
-    setTodos((prev) => {
-      if (prev.find((t) => t.id === event.todo.id)) return prev;
-      return [event.todo, ...prev];
-    });
-  }, []);
+  const handleTodoUpdated = useCallback(
+    (event: SocketTodoEvent) => {
+      qc.setQueryData<Todo[]>(key, (prev = []) =>
+        prev.map((t) => (t.id === event.todo.id ? event.todo : t)),
+      );
+    },
+    [qc, key],
+  );
 
-  const handleTodoUpdated = useCallback((event: SocketTodoEvent) => {
-    setTodos((prev) =>
-      prev.map((t) => (t.id === event.todo.id ? event.todo : t)),
-    );
-  }, []);
-
-  const handleTodoDeleted = useCallback((event: SocketDeleteEvent) => {
-    setTodos((prev) => prev.filter((t) => t.id !== event.todoId));
-  }, []);
+  const handleTodoDeleted = useCallback(
+    (event: SocketDeleteEvent) => {
+      qc.setQueryData<Todo[]>(key, (prev = []) =>
+        prev.filter((t) => t.id !== event.todoId),
+      );
+    },
+    [qc, key],
+  );
 
   const { isConnected, emitTodoCreated, emitTodoUpdated, emitTodoDeleted } =
-    useSocket({
-      boardId,
-      onTodoCreated: handleTodoCreated,
-      onTodoUpdated: handleTodoUpdated,
-      onTodoDeleted: handleTodoDeleted,
-    });
+    useSocket({ boardId, onTodoCreated: handleTodoCreated, onTodoUpdated: handleTodoUpdated, onTodoDeleted: handleTodoDeleted });
 
-  // ── CRUD with optimistic updates ─────────────────────────────────────────
+  // ── Create ────────────────────────────────────────────────────────────────
 
-  const createTodo = useCallback(
-    async (payload: {
-      title: string;
-      description?: string;
-      status: TodoStatus;
-      priority: 'low' | 'medium' | 'high';
-      assigneeId?: string;
-    }) => {
-      const created: Todo = await api.createTodo(boardId, payload);
-      // Optimistic: add locally immediately
-      setTodos((prev) => [created, ...prev]);
-      // Broadcast to other tabs/users
+  const createMutation = useMutation<Todo, { message?: string }, CreateTodoPayload>({
+    mutationFn: (payload) => api.createTodo(boardId, payload),
+    onSuccess: (created) => {
+      qc.setQueryData<Todo[]>(key, (prev = []) => [created, ...prev]);
       emitTodoCreated(created);
     },
-    [boardId, emitTodoCreated],
-  );
+    onError: () => {
+      qc.invalidateQueries({ queryKey: key });
+    },
+  });
 
-  const updateTodo = useCallback(
-    async (
-      todoId: string,
-      payload: Partial<{
-        title: string;
-        description: string;
-        status: TodoStatus;
-        priority: 'low' | 'medium' | 'high';
-        assigneeId: string;
-      }>,
-    ) => {
-      // Optimistic update
-      setTodos((prev) =>
+  // ── Update (with optimistic update) ──────────────────────────────────────
+
+  const updateMutation = useMutation<
+    Todo,
+    { message?: string },
+    { todoId: string; payload: UpdateTodoPayload }
+  >({
+    mutationFn: ({ todoId, payload }) => api.updateTodo(boardId, todoId, payload),
+    onMutate: async ({ todoId, payload }) => {
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<Todo[]>(key);
+      qc.setQueryData<Todo[]>(key, (prev = []) =>
         prev.map((t) => (t.id === todoId ? { ...t, ...payload } : t)),
       );
-
-      try {
-        const updated: Todo = await api.updateTodo(boardId, todoId, payload);
-        setTodos((prev) =>
-          prev.map((t) => (t.id === todoId ? updated : t)),
-        );
-        emitTodoUpdated(updated);
-      } catch (err) {
-        // Roll back on failure
-        setTodos((prev) =>
-          prev.map((t) => (t.id === todoId ? { ...t, ...payload } : t)),
-        );
-        throw err;
-      }
+      return { previous };
     },
-    [boardId, emitTodoUpdated],
-  );
-
-  const deleteTodo = useCallback(
-    async (todoId: string) => {
-      // Optimistic removal
-      setTodos((prev) => prev.filter((t) => t.id !== todoId));
-      try {
-        await api.deleteTodo(boardId, todoId);
-        emitTodoDeleted(todoId);
-      } catch (err) {
-        // Roll back by re-fetching
-        const data = await api.getTodos(boardId);
-        setTodos(data);
-        throw err;
-      }
+    onSuccess: (updated) => {
+      qc.setQueryData<Todo[]>(key, (prev = []) =>
+        prev.map((t) => (t.id === updated.id ? updated : t)),
+      );
+      emitTodoUpdated(updated);
     },
-    [boardId, emitTodoDeleted],
-  );
+    onError: (_err, _vars, context) => {
+      const ctx = context as { previous?: Todo[] } | undefined;
+      if (ctx?.previous) qc.setQueryData(key, ctx.previous);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: key });
+    },
+  });
+
+  // ── Delete (with optimistic removal) ─────────────────────────────────────
+
+  const deleteMutation = useMutation<void, { message?: string }, string>({
+    mutationFn: (todoId) => api.deleteTodo(boardId, todoId),
+    onMutate: async (todoId) => {
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<Todo[]>(key);
+      qc.setQueryData<Todo[]>(key, (prev = []) =>
+        prev.filter((t) => t.id !== todoId),
+      );
+      return { previous };
+    },
+    onSuccess: (_data, todoId) => {
+      emitTodoDeleted(todoId);
+    },
+    onError: (_err, _todoId, context) => {
+      const ctx = context as { previous?: Todo[] } | undefined;
+      if (ctx?.previous) qc.setQueryData(key, ctx.previous);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: key });
+    },
+  });
 
   return {
     todos,
     isLoading,
-    error,
-    createTodo,
-    updateTodo,
-    deleteTodo,
+    isFetching,
+    error: (queryError as { message?: string })?.message ?? null,
+    createTodo: (payload) => createMutation.mutateAsync(payload).then(() => undefined),
+    updateTodo: (todoId, payload) => updateMutation.mutateAsync({ todoId, payload }).then(() => undefined),
+    deleteTodo: (todoId) => deleteMutation.mutateAsync(todoId),
     isConnected,
   };
 }

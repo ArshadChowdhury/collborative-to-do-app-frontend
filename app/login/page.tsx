@@ -1,43 +1,56 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
 import { useTenant } from '@/contexts/TenantContext';
+import { AuthGuard } from '../../guards/AuthGuard';
 import { api } from '@/lib/axios';
-import { ApiError, AuthResponse } from '@/types';
+import { loginSchema, LoginFormValues } from '../../types/schemas';
+import { AuthResponse } from '@/types';
 
-export default function LoginPage() {
+// ─── Form ─────────────────────────────────────────────────────────────────────
+
+function LoginForm() {
   const { login } = useTenant();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [form, setForm] = useState({
-    email: '',
-    password: '',
-    tenantSlug: '',
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError,
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { tenantSlug: '', email: '', password: '' },
   });
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    try {
-      const data: AuthResponse = await api.login(form);
+  const { mutateAsync, error: mutationError } = useMutation<
+    AuthResponse,
+    { message?: string },
+    LoginFormValues
+  >({
+    mutationFn: (values) => api.login(values),
+    onSuccess: (data) => {
       login(data.token, data.user);
-      router.push('/dashboard');
-    } catch (err) {
-      setError((err as ApiError).message ?? 'Login failed. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      const returnTo = searchParams.get('returnTo');
+      router.push(returnTo ?? '/dashboard');
+    },
+    onError: (err) => {
+      // Surface server-level errors as a root form error
+      setError('root.serverError', {
+        message: err?.message ?? 'Login failed. Please try again.',
+      });
+    },
+  });
+
+  const onSubmit = handleSubmit((values) => mutateAsync(values));
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gray-950">
-      {/* Background gradient blob */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl" />
@@ -58,66 +71,83 @@ export default function LoginPage() {
           <p className="text-gray-400 text-sm mt-1">Sign in to your workspace</p>
         </div>
 
-        {/* Card */}
         <div className="card p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={onSubmit} noValidate className="space-y-5">
+            {/* Workspace Slug */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              <label htmlFor="tenantSlug" className="block text-sm font-medium text-gray-300 mb-1.5">
                 Workspace Slug
               </label>
               <input
+                id="tenantSlug"
                 type="text"
-                className="input-base"
-                placeholder="acme-corp"
-                value={form.tenantSlug}
-                onChange={(e) => setForm((f) => ({ ...f, tenantSlug: e.target.value }))}
-                required
                 autoComplete="organization"
+                placeholder="acme-corp"
+                aria-invalid={!!errors.tenantSlug}
+                className={`input-base ${errors.tenantSlug ? 'border-red-500/60 focus:ring-red-500' : ''}`}
+                {...register('tenantSlug')}
               />
-              <p className="text-xs text-gray-500 mt-1">Your organization's unique identifier</p>
+              {errors.tenantSlug ? (
+                <p className="text-xs text-red-400 mt-1">{errors.tenantSlug.message}</p>
+              ) : (
+                <p className="text-xs text-gray-500 mt-1">Your organization's unique identifier</p>
+              )}
             </div>
 
+            {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1.5">
                 Email
               </label>
               <input
+                id="email"
                 type="email"
-                className="input-base"
-                placeholder="alice@acme-corp.com"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                required
                 autoComplete="email"
+                placeholder="alice@acme-corp.com"
+                aria-invalid={!!errors.email}
+                className={`input-base ${errors.email ? 'border-red-500/60 focus:ring-red-500' : ''}`}
+                {...register('email')}
               />
+              {errors.email && (
+                <p className="text-xs text-red-400 mt-1">{errors.email.message}</p>
+              )}
             </div>
 
+            {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1.5">
                 Password
               </label>
               <input
+                id="password"
                 type="password"
-                className="input-base"
-                placeholder="••••••••"
-                value={form.password}
-                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                required
                 autoComplete="current-password"
+                placeholder="••••••••"
+                aria-invalid={!!errors.password}
+                className={`input-base ${errors.password ? 'border-red-500/60 focus:ring-red-500' : ''}`}
+                {...register('password')}
               />
+              {errors.password && (
+                <p className="text-xs text-red-400 mt-1">{errors.password.message}</p>
+              )}
             </div>
 
-            {error && (
-              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                <svg className="w-4 h-4 text-red-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            {/* Server / root error */}
+            {errors.root?.serverError && (
+              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3" role="alert">
+                <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-red-400">{error}</p>
+                <p className="text-sm text-red-400">{errors.root.serverError.message}</p>
               </div>
             )}
 
-            <button type="submit" disabled={isLoading} className="btn-primary w-full py-2.5 flex items-center justify-center gap-2">
-              {isLoading ? (
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn-primary w-full py-2.5 flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? (
                 <>
                   <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -140,5 +170,16 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+// guestOnly: redirect already-authenticated users straight to /dashboard
+
+export default function LoginPage() {
+  return (
+    <AuthGuard guestOnly redirectTo="/dashboard">
+      <LoginForm />
+    </AuthGuard>
   );
 }

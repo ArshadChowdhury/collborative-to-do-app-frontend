@@ -1,53 +1,80 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
 import { useTenant } from '@/contexts/TenantContext';
+import { AuthGuard } from '../../guards/AuthGuard';
 import { api } from '@/lib/axios';
-import { ApiError, AuthResponse } from '@/types';
+import { signupSchema, SignupFormValues } from '../../types/schemas';
+import { AuthResponse } from '@/types';
 
-export default function SignupPage() {
+// ─── Reusable field error component ──────────────────────────────────────────
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <p className="text-xs text-red-400 mt-1">{message}</p>;
+}
+
+// ─── Form ─────────────────────────────────────────────────────────────────────
+
+function SignupForm() {
   const { login } = useTenant();
   const router = useRouter();
 
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    tenantName: '',
-    tenantSlug: '',
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+    setError,
+  } = useForm<SignupFormValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      tenantName: '',
+      tenantSlug: '',
+    },
   });
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Auto-generate slug from tenant name
-  const handleTenantNameChange = (value: string) => {
-    setForm((f) => ({
-      ...f,
-      tenantName: value,
-      tenantSlug: value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, ''),
-    }));
+  // Auto-generate slug from tenant name as the user types
+  const handleTenantNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setValue('tenantName', value, { shouldValidate: true });
+    const slug = value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    setValue('tenantSlug', slug, { shouldValidate: !!slug });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    try {
-      const data: AuthResponse = await api.signup(form);
+  const { mutateAsync } = useMutation<
+    AuthResponse,
+    { message?: string },
+    SignupFormValues
+  >({
+    mutationFn: (values) => api.signup(values),
+    onSuccess: (data) => {
       login(data.token, data.user);
       router.push('/dashboard');
-    } catch (err) {
-      setError((err as ApiError).message ?? 'Signup failed. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    onError: (err) => {
+      setError('root.serverError', {
+        message: err?.message ?? 'Signup failed. Please try again.',
+      });
+    },
+  });
+
+  const onSubmit = handleSubmit((values) => mutateAsync(values));
+
+  const inputClass = (hasError: boolean) =>
+    `input-base ${hasError ? 'border-red-500/60 focus:ring-red-500' : ''}`;
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gray-950 py-12">
@@ -71,86 +98,125 @@ export default function SignupPage() {
         </div>
 
         <div className="card p-8">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Your Name</label>
-                <input
-                  type="text"
-                  className="input-base"
-                  placeholder="Alice Smith"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  required
-                />
-              </div>
+          <form onSubmit={onSubmit} noValidate className="space-y-4">
+            {/* Full name */}
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-1.5">
+                Your Name
+              </label>
+              <input
+                id="name"
+                type="text"
+                placeholder="Alice Smith"
+                autoComplete="name"
+                aria-invalid={!!errors.name}
+                className={inputClass(!!errors.name)}
+                {...register('name')}
+              />
+              <FieldError message={errors.name?.message} />
+            </div>
 
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Email</label>
-                <input
-                  type="email"
-                  className="input-base"
-                  placeholder="alice@company.com"
-                  value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  required
-                />
-              </div>
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1.5">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                placeholder="alice@company.com"
+                autoComplete="email"
+                aria-invalid={!!errors.email}
+                className={inputClass(!!errors.email)}
+                {...register('email')}
+              />
+              <FieldError message={errors.email?.message} />
+            </div>
 
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Password</label>
-                <input
-                  type="password"
-                  className="input-base"
-                  placeholder="At least 8 characters"
-                  value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  minLength={8}
-                  required
-                />
-              </div>
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1.5">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                placeholder="At least 8 characters"
+                autoComplete="new-password"
+                aria-invalid={!!errors.password}
+                className={inputClass(!!errors.password)}
+                {...register('password')}
+              />
+              <FieldError message={errors.password?.message} />
+            </div>
 
+            {/* Confirm Password */}
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-1.5">
+                Confirm Password
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                placeholder="Re-enter your password"
+                autoComplete="new-password"
+                aria-invalid={!!errors.confirmPassword}
+                className={inputClass(!!errors.confirmPassword)}
+                {...register('confirmPassword')}
+              />
+              <FieldError message={errors.confirmPassword?.message} />
+            </div>
+
+            {/* Org name + slug side by side */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                <label htmlFor="tenantName" className="block text-sm font-medium text-gray-300 mb-1.5">
                   Organization Name
                 </label>
                 <input
+                  id="tenantName"
                   type="text"
-                  className="input-base"
                   placeholder="Acme Corp"
-                  value={form.tenantName}
-                  onChange={(e) => handleTenantNameChange(e.target.value)}
-                  required
+                  autoComplete="organization"
+                  aria-invalid={!!errors.tenantName}
+                  className={inputClass(!!errors.tenantName)}
+                  {...register('tenantName', { onChange: handleTenantNameChange })}
                 />
+                <FieldError message={errors.tenantName?.message} />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                <label htmlFor="tenantSlug" className="block text-sm font-medium text-gray-300 mb-1.5">
                   Workspace Slug
                 </label>
                 <input
+                  id="tenantSlug"
                   type="text"
-                  className="input-base"
                   placeholder="acme-corp"
-                  value={form.tenantSlug}
-                  onChange={(e) => setForm((f) => ({ ...f, tenantSlug: e.target.value }))}
-                  pattern="[a-z0-9-]+"
-                  required
+                  aria-invalid={!!errors.tenantSlug}
+                  className={inputClass(!!errors.tenantSlug)}
+                  {...register('tenantSlug')}
                 />
+                <FieldError message={errors.tenantSlug?.message} />
               </div>
             </div>
 
-            {error && (
-              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                <svg className="w-4 h-4 text-red-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            {/* Server / root error */}
+            {errors.root?.serverError && (
+              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3" role="alert">
+                <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-red-400">{error}</p>
+                <p className="text-sm text-red-400">{errors.root.serverError.message}</p>
               </div>
             )}
 
-            <button type="submit" disabled={isLoading} className="btn-primary w-full py-2.5 flex items-center justify-center gap-2 mt-2">
-              {isLoading ? (
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn-primary w-full py-2.5 flex items-center justify-center gap-2 mt-2"
+            >
+              {isSubmitting ? (
                 <>
                   <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -173,5 +239,15 @@ export default function SignupPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function SignupPage() {
+  return (
+    <AuthGuard guestOnly redirectTo="/dashboard">
+      <SignupForm />
+    </AuthGuard>
   );
 }
