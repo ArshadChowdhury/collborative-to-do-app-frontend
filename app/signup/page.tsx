@@ -58,7 +58,7 @@ function SignupForm() {
     },
   });
 
-  const onSubmit = handleSubmit((values) => mutateAsync(values));
+  const onSubmit = handleSubmit((values) => mutateAsync(values).catch(() => { }));
 
   const inputClass = (hasError: boolean) =>
     `input-base ${hasError ? 'border-red-500/60 focus:ring-red-500' : ''}`;
@@ -80,7 +80,7 @@ function SignupForm() {
             </div>
             <span className="text-xl font-semibold text-gray-100">TaskFlow</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-100">Create your account</h1>
+          <h1 className="text-2xl font-bold text-gray-100">Create your workspace</h1>
           <p className="text-gray-400 text-sm mt-1">Start collaborating with your team</p>
         </div>
 
@@ -186,7 +186,7 @@ function SignupForm() {
         </div>
 
         <p className="text-center text-sm text-gray-500 mt-4">
-          Already have an account?{' '}
+          Already have a workspace?{' '}
           <Link href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
             Sign in
           </Link>

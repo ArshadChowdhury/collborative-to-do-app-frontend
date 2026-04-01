@@ -81,7 +81,7 @@ function LoginForm() {
   // });
 
 
-  const onSubmit = handleSubmit((values) => mutateAsync(values));
+  const onSubmit = handleSubmit((values) => mutateAsync(values).catch(() => { }));
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gray-950">

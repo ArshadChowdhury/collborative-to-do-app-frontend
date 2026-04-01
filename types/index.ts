@@ -305,15 +305,16 @@ export interface UpdateTodoPayload extends Partial<CreateTodoPayload> {
 export interface SocketTodoEvent {
   todo: Todo;
   boardId: string;
-  tenantId: string;
   actorId: string | undefined;
+  tenantSlug: String;
 }
 
 export interface SocketDeleteEvent {
   todoId: string;
   boardId: string;
-  tenantId: string;
   actorId: string | undefined;
+  tenantSlug: String;
+
 }
 
 // ─── API Generic ─────────────────────────────────────────────────────────────

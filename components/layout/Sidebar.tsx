@@ -17,9 +17,9 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-60 shrink-0 flex flex-col bg-gray-900/80 border-r border-white/[0.06] h-full">
+    <aside className="w-60 shrink-0 flex flex-col bg-gray-900/80 border-r border-white/6 h-full">
       {/* Logo */}
-      <div className="px-4 py-5 border-b border-white/[0.06]">
+      <div className="px-4 py-5 border-b border-white/6">
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
             <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ width: 18, height: 18 }}>
@@ -28,7 +28,7 @@ export default function Sidebar() {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-100 truncate">TaskFlow</p>
-            <p className="text-xs text-gray-500 truncate">{user?.tenantName}</p>
+            <p className="text-xs text-gray-500 truncate">{user?.tenant.slug}</p>
           </div>
         </Link>
       </div>
@@ -89,15 +89,15 @@ export default function Sidebar() {
       </nav>
 
       {/* User footer */}
-      <div className="border-t border-white/[0.06] p-3">
+      <div className="border-t border-white/6 p-3">
         <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg">
           <div className="w-7 h-7 rounded-full bg-indigo-600/30 flex items-center justify-center shrink-0">
             <span className="text-xs font-semibold text-indigo-300">
-              {user?.name?.[0]?.toUpperCase() ?? '?'}
+              {user?.displayName?.[0]?.toUpperCase() ?? '?'}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-gray-300 truncate">{user?.name}</p>
+            <p className="text-xs font-medium text-gray-300 truncate">{user?.displayName}</p>
             <p className="text-xs text-gray-600 truncate">{user?.email}</p>
           </div>
           <button

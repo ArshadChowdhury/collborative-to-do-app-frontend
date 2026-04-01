@@ -203,29 +203,27 @@ apiClient.interceptors.request.use(
 // ─── Response Interceptor ─────────────────────────────────────────────────────
 // Normalizes error shape and handles 401 globally.
 
+// 
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ message?: string; error?: string }>) => {
-    if (error.response?.status === 401) {
-      // Clear stale credentials and hard-redirect to login
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('mt_todo_token');
-        localStorage.removeItem('mt_todo_user');
-        window.location.href = '/login';
-      }
-    }
+  (error) => {
+    const data = error?.response?.data;
 
-    const apiError: ApiError = {
-      message:
-        error.response?.data?.message ??
-        error.response?.data?.error ??
-        error.message ??
-        'An unexpected error occurred.',
-      statusCode: error.response?.status,
+    // Extract a clean string message regardless of shape
+    const extract = (msg: unknown): string => {
+      if (typeof msg === 'string') return msg;
+      if (Array.isArray(msg)) return msg[0]; // NestJS validation arrays
+      if (msg && typeof msg === 'object') {
+        const obj = msg as Record<string, unknown>;
+        if (obj.message) return extract(obj.message);
+      }
+      return 'Something went wrong. Please try again.';
     };
 
-    return Promise.reject(apiError);
-  },
+    const message = extract(data);
+    return Promise.reject(new Error(message));
+  }
 );
 
 // ─── API Helpers ──────────────────────────────────────────────────────────────
