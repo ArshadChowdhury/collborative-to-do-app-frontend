@@ -2,11 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useTenant } from '@/contexts/TenantContext';
+import { InviteMemberModal } from '../board/InviteMemberModal';
 import { useBoards } from '@/hooks/useBoards';
 
 export default function Sidebar() {
   const { user, logout } = useTenant();
+  const [showInvite, setShowInvite] = useState(false);
   const { boards, isLoading } = useBoards();
   const pathname = usePathname();
   const router = useRouter();
@@ -37,17 +40,28 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5">
         <Link
           href="/dashboard"
-          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-            pathname === '/dashboard'
-              ? 'bg-indigo-600/20 text-indigo-300'
-              : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-          }`}
+          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${pathname === '/dashboard'
+            ? 'bg-indigo-600/20 text-indigo-300'
+            : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+            }`}
         >
           <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
           </svg>
           All Boards
         </Link>
+
+        <div className="pb-3">
+          <button
+            onClick={() => setShowInvite(true)}
+            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors"
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            Add Member
+          </button>
+        </div>
 
         {/* Boards list */}
         <div className="pt-2">
@@ -70,11 +84,10 @@ export default function Sidebar() {
                 <Link
                   key={board.id}
                   href={`/dashboard/board/${board.id}`}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    isActive
-                      ? 'bg-indigo-600/20 text-indigo-300'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-                  }`}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${isActive
+                    ? 'bg-indigo-600/20 text-indigo-300'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                    }`}
                 >
                   <span
                     className="w-2 h-2 rounded-full shrink-0"
@@ -111,6 +124,7 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
+      {showInvite && <InviteMemberModal onClose={() => setShowInvite(false)} />}
     </aside>
   );
 }
