@@ -51,36 +51,6 @@ function LoginForm() {
     },
   });
 
-  // const { mutateAsync } = useMutation<AuthResponse, Error, LoginFormValues>({
-  //   mutationFn: async (values) => {
-  //     apiClient.defaults.headers.common['X-Tenant-Slug'] = values.tenantSlug;
-  //     const { tenantSlug, ...payload } = values;
-  //     try {
-  //       return await api.login(payload);
-  //     } catch (err: unknown) {
-  //       // Recursively extract a string message from whatever shape the API throws
-  //       const extract = (e: unknown): string => {
-  //         if (typeof e === 'string') return e;
-  //         if (e instanceof Error) return e.message;
-  //         if (e && typeof e === 'object') {
-  //           const obj = e as Record<string, unknown>;
-  //           // Handle { message: { message: '...', statusCode, error } }
-  //           if (obj.message) return extract(obj.message);
-  //           if (obj.error) return extract(obj.error);
-  //         }
-  //         return 'Login failed. Please try again.';
-  //       };
-  //       throw new Error(extract(err));
-  //     }
-  //   },
-  //   onError: (err) => {
-  //     setError('root.serverError', {
-  //       message: err.message ?? 'Login failed. Please try again.',
-  //     });
-  //   },
-  // });
-
-
   const onSubmit = handleSubmit((values) => mutateAsync(values).catch(() => { }));
 
   return (
